@@ -1,6 +1,6 @@
 ---
 title: Technical Requirements Document — EnterpriseClaw
-description: TRD for EnterpriseClaw, an enterprise-grade AI agentic platform inspired by OpenClaw, built on Spring AI
+description: TRD for EnterpriseClaw, an AI agentic platform inspired by OpenClaw, built on Spring AI — runs for individual users or enterprise teams with one-click installation
 author: enterpriseclaw team
 date: 2026-02-28
 ---
@@ -14,31 +14,36 @@ date: 2026-02-28
 - [3. Architecture Overview](#3-architecture-overview)
 - [4. Spring AI Integration](#4-spring-ai-integration)
 - [5. Agent Skills](#5-agent-skills)
-- [6. Observability](#6-observability)
+- [6. Built-in Observability Dashboard](#6-built-in-observability-dashboard)
 - [7. Scheduled Tasks (CronJob)](#7-scheduled-tasks-cronjob)
 - [8. Technical Stack](#8-technical-stack)
-- [9. Non-Functional Requirements](#9-non-functional-requirements)
-- [10. Data Flow](#10-data-flow)
-- [11. Deployment Architecture](#11-deployment-architecture)
-- [12. Open Questions and Future Considerations](#12-open-questions-and-future-considerations)
+- [9. Installation](#9-installation)
+- [10. Non-Functional Requirements](#10-non-functional-requirements)
+- [11. Data Flow](#11-data-flow)
+- [12. Deployment Architecture](#12-deployment-architecture)
+- [13. Open Questions and Future Considerations](#13-open-questions-and-future-considerations)
 
 ---
 
 ## 1. Overview
 
-EnterpriseClaw is an enterprise-grade, AI-native agentic platform that enables organizations to build, deploy, and operate intelligent agents at scale. It is inspired by the design principles of OpenClaw and extends them with production-grade concerns: full Spring AI integration, built-in observability, scheduled background intelligence (CronJobs), and a composable Agent Skills model.
+EnterpriseClaw is an AI-native agentic platform inspired by OpenClaw, built fully on Spring AI. It ships as a **single web application** that works equally well for an individual developer running it locally and for an enterprise team running it on a shared server. No external monitoring infrastructure, no CLI tools, and no complex cluster setup are required — just run the jar or use Docker and open the browser.
 
 ### 1.1 Goals
 
 - Provide a first-class Spring AI–based runtime for multi-agent, multi-model workflows.
-- Deliver observable, auditable AI execution traces suitable for enterprise compliance.
-- Support scheduled AI workloads alongside real-time agent interactions.
+- Ship as a self-contained web application with a built-in browser UI.
+- Support one-click installation for individuals (single jar, Docker) and teams (Docker Compose).
+- Deliver built-in observability through an in-app dashboard — no external tools required.
+- Support scheduled AI workloads (CronJobs) managed entirely from the web UI.
 - Enable composable Agent Skills that extend agent capabilities without tight coupling.
 
 ### 1.2 Non-Goals
 
 - EnterpriseClaw does not replace or compete with the Spring AI library itself; it builds on top of it.
 - It does not ship its own large-language-model (LLM); it connects to external providers (OpenAI, Azure OpenAI, Anthropic, etc.) through Spring AI abstraction.
+- It does not require any external monitoring tools such as Grafana, Prometheus, or OpenTelemetry collectors to operate.
+- It does not expose a command-line interface; all interaction happens through the web application.
 
 ---
 
@@ -54,13 +59,14 @@ EnterpriseClaw is an enterprise-grade, AI-native agentic platform that enables o
 | Planning | ReAct / Plan-and-Execute patterns implemented with Spring AI `ChatClient` + advisors |
 | Multi-agent routing | Supervisor pattern implemented with Spring AI `ChatClient` routing chains |
 
-### 2.2 Enterprise Extensions
+### 2.2 Additions over OpenClaw
 
-- **Observability**: Full Micrometer + OpenTelemetry integration for metrics, traces, and structured logs.
-- **CronJobs**: Spring `@Scheduled` and Quartz-based agents that run autonomously on a schedule.
-- **Security**: OAuth2 / OIDC for API access; secret management via Spring Cloud Vault or Kubernetes Secrets.
-- **Tenancy**: Multi-tenant agent isolation with configurable context boundaries.
-- **Audit Log**: Immutable, structured record of every agent action and tool call.
+- **Built-in Web UI**: Full browser-based interface for managing agents, skills, cron jobs, and viewing execution history.
+- **One-Click Install**: Single jar, Docker image, and Docker Compose file for immediate setup.
+- **CronJobs**: Spring `@Scheduled`-based agents that run autonomously on a schedule, managed from the UI.
+- **Built-in Observability Dashboard**: In-app pages showing agent run history, skill usage, and LLM token usage — no external tools needed.
+- **Dual Mode**: Same application binary runs in solo (individual) mode or shared (enterprise team) mode via a single configuration flag.
+- **Audit Log**: Immutable, structured record of every agent action and tool call, viewable in the web UI.
 
 ---
 
@@ -68,37 +74,36 @@ EnterpriseClaw is an enterprise-grade, AI-native agentic platform that enables o
 
 ```mermaid
 flowchart TD
-    Client["Client (REST / gRPC / WebSocket)"]
-    GW["API Gateway"]
-    AgentSvc["Agent Service\n(Spring Boot)"]
+    Browser["Browser\n(Web UI)"]
+    AgentSvc["EnterpriseClaw\n(Spring Boot Web App)"]
     Skills["Agent Skills Registry"]
-    MemoryStore["Memory & VectorStore\n(Redis / Postgres pgvector)"]
+    MemoryStore["Memory & VectorStore\n(Embedded H2 or Postgres + pgvector)"]
     LLM["LLM Providers\n(OpenAI / Azure / Anthropic)"]
-    CronEngine["CronJob Engine\n(Spring Scheduler / Quartz)"]
-    ObsStack["Observability Stack\n(Prometheus / Grafana / Tempo)"]
-    AuditLog["Audit Log\n(Append-only store)"]
+    CronEngine["CronJob Engine\n(Spring Scheduler)"]
+    AuditLog["Audit Log\n(Database table)"]
+    ObsDash["Built-in Observability\n(In-app dashboard pages)"]
 
-    Client --> GW --> AgentSvc
+    Browser --> AgentSvc
     AgentSvc --> Skills
     AgentSvc --> MemoryStore
     AgentSvc --> LLM
     AgentSvc --> AuditLog
     CronEngine --> AgentSvc
-    AgentSvc --> ObsStack
+    AgentSvc --> ObsDash
 ```
 
 ### 3.1 Component Responsibilities
 
 | Component | Responsibility |
 |---|---|
-| **API Gateway** | Authentication, rate limiting, request routing |
-| **Agent Service** | Core Spring Boot service; hosts all agent logic and Spring AI beans |
+| **Browser (Web UI)** | All user interaction — chat, agent management, skill config, cron jobs, observability pages |
+| **EnterpriseClaw App** | Core Spring Boot service; hosts all agent logic, web UI, Spring AI beans, and REST APIs |
 | **Agent Skills Registry** | Discovers, registers, and exposes `ToolCallback` implementations to agents |
 | **Memory & VectorStore** | Stores conversation history and semantic embeddings for RAG workflows |
 | **LLM Providers** | Abstracted via Spring AI `ChatModel` interface |
-| **CronJob Engine** | Triggers scheduled agent runs; monitors task health and retries |
-| **Observability Stack** | Collects and visualizes metrics, traces, and logs |
-| **Audit Log** | Records every tool invocation, model call, and agent decision |
+| **CronJob Engine** | Triggers scheduled agent runs; managed and monitored from the web UI |
+| **Built-in Observability** | In-app dashboard pages rendering metrics and logs stored in the application database |
+| **Audit Log** | Database table recording every tool invocation, model call, and agent decision |
 
 ---
 
