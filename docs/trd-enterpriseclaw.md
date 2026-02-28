@@ -30,7 +30,7 @@ date: 2026-02-28
 
 EnterpriseClaw is an AI-native agentic platform inspired by OpenClaw, built fully on Spring AI. It ships as a **single self-contained web application** that works equally well for an individual developer running it locally and for an enterprise team running it on a shared server. No external monitoring infrastructure, no CLI tools, and no complex cluster setup are required.
 
-Install options span from a single `jbang` command for personal use, to a compact JLink runtime image for distribution, to a Docker Compose stack for a team. Open a browser and you are ready.
+Install options span from a compact JLink runtime image for distribution, to a Docker single container, to a Docker Compose stack for a team. Open a browser and you are ready.
 
 ### 1.1 Goals
 
@@ -38,7 +38,7 @@ Install options span from a single `jbang` command for personal use, to a compac
 - Implement Agent Skills as declarative `SKILL.md` files — modular, reusable, and LLM-agnostic.
 - Support interactive question-context workflows with `AskUserQuestionTool` so agents ask clarifying questions before acting.
 - Ship as a self-contained web application with a built-in browser UI — no CLI needed.
-- Support four installation paths: JBang, JLink runtime image, Docker, and Docker Compose.
+- Support three installation paths: JLink runtime image, Docker, and Docker Compose.
 - Deliver built-in observability through an in-app dashboard — no Grafana, Prometheus, or external tools required.
 - Support scheduled AI workloads (CronJobs) managed entirely from the web UI.
 - Run identically for a solo user (embedded H2, single process) and for an enterprise team (PostgreSQL, multi-user).
@@ -70,7 +70,7 @@ Install options span from a single `jbang` command for personal use, to a compac
 - **`SkillsTool` (spring-ai-agent-utils)**: Skills are plain `SKILL.md` Markdown files, not compiled Java code. Add or update a skill without redeploying the application.
 - **Question Context**: `AskUserQuestionTool` lets the agent pause and ask clarifying questions before executing a skill or cron job, collecting just enough context to proceed correctly.
 - **Built-in Web UI**: Full browser interface for chat, skill editor, cron jobs, and observability pages.
-- **Four-Way Install**: JBang one-liner, JLink self-contained image, Docker, or Docker Compose — choose what fits the user's environment.
+- **Three-Way Install**: JLink self-contained image, Docker, or Docker Compose — choose what fits the user's environment.
 - **Dual Mode**: The same binary runs in solo mode (no auth, embedded H2) or team mode (multi-user, PostgreSQL) via one flag.
 - **Audit Log**: Immutable record of every agent action, skill invocation, and question–answer pair, viewable in the web UI.
 
@@ -589,7 +589,7 @@ stateDiagram-v2
 | Security (solo) | None — localhost only | — |
 | Security (team) | Spring Security + form login | via Spring Boot 3.4.x |
 | Web UI | Thymeleaf + HTMX | — |
-| Distribution | JBang / JLink / Docker / Docker Compose | — |
+| Distribution | JLink / Docker / Docker Compose | — |
 
 ### 9.1 Key Dependencies
 
@@ -617,23 +617,9 @@ dependencies {
 
 ## 10. Installation
 
-EnterpriseClaw supports four installation paths. All of them end the same way: open `http://localhost:8080` in your browser.
+EnterpriseClaw supports three installation paths. All of them end the same way: open `http://localhost:8080` in your browser.
 
-### 10.1 JBang (Fastest — No Java Install Required)
-
-[JBang](https://www.jbang.dev) downloads and runs the application from a single command with no JDK pre-installed:
-
-```bash
-# Install JBang once (if not already present)
-curl -Ls https://sh.jbang.dev | bash -s - app setup
-
-# Run EnterpriseClaw
-OPENAI_API_KEY=sk-... jbang enterpriseclaw@enterpriseclaw/enterpriseclaw
-```
-
-JBang downloads the right JDK automatically on first run. Subsequent runs use the local cache and start instantly.
-
-### 10.2 JLink — Self-Contained Runtime Image
+### 10.1 JLink — Self-Contained Runtime Image
 
 [JLink](https://docs.oracle.com/en/java/javase/21/docs/specs/man/jlink.html) bundles only the JDK modules the application needs into a minimal custom runtime. The resulting image runs without a system JDK installed. The JLink image must be built with the same JDK version (Java 21) as the application is compiled with:
 
@@ -658,7 +644,7 @@ OPENAI_API_KEY=sk-... ./dist/bin/enterpriseclaw
 
 This is the recommended distribution format for enterprise deployments where installing a full JDK on every server is undesirable.
 
-### 10.3 Docker — Single Container
+### 10.2 Docker — Single Container
 
 ```bash
 docker run -p 8080:8080 \
@@ -670,7 +656,7 @@ docker run -p 8080:8080 \
 
 Data is persisted in the named volume. Skills mounted from the host are live-reloaded without restarting the container.
 
-### 10.4 Docker Compose — App + PostgreSQL (Recommended for Teams)
+### 10.3 Docker Compose — App + PostgreSQL (Recommended for Teams)
 
 Save the following as `docker-compose.yml` and run `docker compose up -d`:
 
@@ -726,16 +712,16 @@ docker compose up -d
 # open http://localhost:8080
 ```
 
-### 10.5 Installation Mode Comparison
+### 10.4 Installation Mode Comparison
 
-| Criterion | JBang | JLink Image | Docker | Docker Compose |
-|---|---|---|---|---|
-| **Java required** | No (JBang fetches it) | No (bundled runtime) | No | No |
-| **Best for** | Quick personal trial | Enterprise distribution | Solo containerised | Team / shared server |
-| **Database** | Embedded H2 | Embedded H2 | Embedded H2 | PostgreSQL |
-| **Multi-user** | No | No | No | Yes (`team` profile) |
-| **Skills persistence** | Local filesystem | Local filesystem | Mounted volume | Mounted volume |
-| **Offline after first run** | Yes | Yes | Yes | Yes |
+| Criterion | JLink Image | Docker | Docker Compose |
+|---|---|---|---|
+| **Java required** | No (bundled runtime) | No | No |
+| **Best for** | Personal use / enterprise distribution | Solo containerised | Team / shared server |
+| **Database** | Embedded H2 | Embedded H2 | PostgreSQL |
+| **Multi-user** | No | No | Yes (`team` profile) |
+| **Skills persistence** | Local filesystem | Mounted volume | Mounted volume |
+| **Offline after first run** | Yes | Yes | Yes |
 
 ---
 
@@ -763,7 +749,7 @@ docker compose up -d
 
 ### 11.4 Usability
 
-- A new user installs and completes their first agent interaction in under 5 minutes using JBang.
+- A new user installs and completes their first agent interaction in under 5 minutes using the JLink launcher.
 - All features are accessible from the browser; no terminal interaction is needed after the initial launch command.
 - The Skills editor in the web UI allows creating and editing `SKILL.md` files without leaving the browser.
 
@@ -859,7 +845,7 @@ EnterpriseClaw supports three deployment tiers from the same binary, selected by
 ```mermaid
 flowchart TD
     subgraph Solo["Solo Mode (default profile)"]
-        J["JBang / JLink / Docker\nsingle process"]
+        J["JLink / Docker\nsingle process"]
         H2[("H2 Embedded DB\nfile-based")]
         SV["SimpleVectorStore\nin-memory"]
         J --> H2
