@@ -18,6 +18,10 @@ date: 2026-02-28
 - [7. Built-in Observability Dashboard](#7-built-in-observability-dashboard)
 - [8. Scheduled Tasks (CronJob)](#8-scheduled-tasks-cronjob)
 - [9. Technical Stack](#9-technical-stack)
+  - [9.1 Key Dependencies](#91-key-dependencies)
+  - [9.2 Project Layout](#92-project-layout)
+  - [9.3 Taskfile — Developer Workflow](#93-taskfile--developer-workflow)
+  - [9.4 Environment Configuration (.env)](#94-environment-configuration-env)
 - [10. Installation](#10-installation)
 - [11. Non-Functional Requirements](#11-non-functional-requirements)
 - [12. Data Flow](#12-data-flow)
@@ -37,7 +41,7 @@ Install options span from a compact JLink runtime image for distribution, to a D
 - Provide a first-class Spring AI runtime for multi-agent, multi-model workflows using `spring-ai-agent-utils`.
 - Implement Agent Skills as declarative `SKILL.md` files — modular, reusable, and LLM-agnostic.
 - Support interactive question-context workflows with `AskUserQuestionTool` so agents ask clarifying questions before acting.
-- Ship as a self-contained web application with a built-in browser UI — no CLI needed.
+- Ship as a self-contained web application with a React-based browser UI — no CLI needed.
 - Support three installation paths: JLink runtime image, Docker, and Docker Compose.
 - Deliver built-in observability through an in-app dashboard — no Grafana, Prometheus, or external tools required.
 - Support scheduled AI workloads (CronJobs) managed entirely from the web UI.
@@ -69,7 +73,7 @@ Install options span from a compact JLink runtime image for distribution, to a D
 
 - **`SkillsTool` (spring-ai-agent-utils)**: Skills are plain `SKILL.md` Markdown files, not compiled Java code. Add or update a skill without redeploying the application.
 - **Question Context**: `AskUserQuestionTool` lets the agent pause and ask clarifying questions before executing a skill or cron job, collecting just enough context to proceed correctly.
-- **Built-in Web UI**: Full browser interface for chat, skill editor, cron jobs, and observability pages.
+- **Built-in Web UI**: React (Vite) SPA for chat, skill editor, cron jobs, and observability pages. The built-in React app is bundled into the Spring Boot JAR at build time — no separate frontend server is required in production.
 - **Three-Way Install**: JLink self-contained image, Docker, or Docker Compose — choose what fits the user's environment.
 - **Dual Mode**: The same binary runs in solo mode (no auth, embedded H2) or team mode (multi-user, PostgreSQL) via one flag.
 - **Audit Log**: Immutable record of every agent action, skill invocation, and question–answer pair, viewable in the web UI.
@@ -80,7 +84,7 @@ Install options span from a compact JLink runtime image for distribution, to a D
 
 ```mermaid
 flowchart TD
-    Browser["Browser\n(Web UI)"]
+    Browser["React SPA\n(Browser)"]
     App["EnterpriseClaw\n(Spring Boot Web App)"]
     SkillsDir[".claude/skills/\n(SKILL.md files)"]
     SkillsTool["SkillsTool\n(spring-ai-agent-utils)"]
@@ -110,7 +114,7 @@ flowchart TD
 
 | Component | Responsibility |
 |---|---|
-| **Browser (Web UI)** | All user interaction — chat, skill editor, cron management, dashboard, audit log |
+| **Browser (React SPA)** | All user interaction — chat, skill editor, cron management, dashboard, audit log. Built with React (Vite); served as static assets embedded in the Spring Boot JAR |
 | **EnterpriseClaw App** | Spring Boot host; owns agent loop, web layer, REST APIs, Spring AI beans |
 | **SkillsTool** | Discovers `SKILL.md` files at startup; semantically matches user requests to skills at runtime |
 | **FileSystemTools** | Reads skill reference files and templates on demand during skill execution |
@@ -588,7 +592,9 @@ stateDiagram-v2
 | Scheduling | Spring `TaskScheduler` | via Spring Boot |
 | Security (solo) | None — localhost only | — |
 | Security (team) | Spring Security + form login | via Spring Boot 3.4.x |
-| Web UI | Thymeleaf + HTMX | — |
+| Web UI | React 18 (Vite) | 18.x / Vite 5.x |
+| Frontend Package Manager | Node.js / npm | 20 LTS |
+| Task Runner | Task (Taskfile.yml) | 3.x |
 | Distribution | JLink / Docker / Docker Compose | — |
 
 ### 9.1 Key Dependencies
@@ -605,13 +611,192 @@ dependencies {
     implementation("org.springaicommunity:spring-ai-agent-utils:0.4.2") // SkillsTool, AskUserQuestionTool, FileSystemTools, ShellTools
 
     implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("com.h2database:h2")        // solo mode
     implementation("org.postgresql:postgresql") // team mode
+    // No Thymeleaf — the frontend/ React app is built separately and
+    // its dist/ output is copied into src/main/resources/static/ by `task build`.
+    // Spring Boot's ResourceHttpRequestHandler serves it automatically.
 }
 ```
+
+### 9.2 Project Layout
+
+EnterpriseClaw is a single Git repository containing two sub-projects: the Spring Boot backend and the React frontend. The React app is a build-time dependency — its production output is embedded in the JAR via `src/main/resources/static/`.
+
+```
+enterpriseclaw/               ← Git root
+├── frontend/                 ← React app (Vite + React 18)
+│   ├── src/
+│   │   ├── main.tsx
+│   │   ├── App.tsx
+│   │   └── pages/            ← Chat, Skills, CronJobs, Dashboard, AuditLog
+│   ├── public/
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── vite.config.ts        ← dev proxy → localhost:8080
+├── src/                      ← Spring Boot application
+│   └── main/
+│       ├── java/
+│       │   └── com/enterpriseclaw/
+│       └── resources/
+│           ├── application.yml
+│           ├── application-team.yml
+│           └── static/       ← React build output (generated by `task build`, gitignored)
+├── .env                      ← Local secrets — gitignored
+├── .env.example              ← Committed template with placeholder values
+├── Taskfile.yml              ← All dev/build/release tasks
+├── build.gradle.kts
+└── .gitignore                ← includes /src/main/resources/static/ and /frontend/dist/
+```
+
+The `src/main/resources/static/` folder is **not committed** — it is always generated by `task build` (or `task build:frontend`). Spring Boot's default static-resource handler serves the React `index.html` and its assets from this folder.
+
+### 9.3 Taskfile — Developer Workflow
+
+All day-to-day commands are managed via [`Task`](https://taskfile.dev) (a `make`-compatible task runner that reads `Taskfile.yml`). This replaces ad-hoc `./gradlew` and `npm` invocations with a single consistent interface.
+
+```yaml
+# Taskfile.yml
+version: '3'
+
+dotenv: ['.env']           # automatically loads .env into every task's environment
+
+tasks:
+
+  install:
+    desc: Install frontend npm dependencies
+    dir: frontend
+    cmds:
+      - npm install
+
+  dev:frontend:
+    desc: Start the Vite dev server (hot-reload, proxies /api/* to Spring Boot on :8080)
+    dir: frontend
+    cmds:
+      - npm run dev
+
+  dev:backend:
+    desc: Start Spring Boot with spring-boot-devtools (auto-restart on class changes)
+    cmds:
+      - ./gradlew bootRun
+
+  dev:
+    desc: Start both frontend and backend concurrently for local development
+    deps: [dev:frontend, dev:backend]
+
+  build:frontend:
+    desc: Build the React app and copy the output into src/main/resources/static/
+    dir: frontend
+    cmds:
+      - npm run build
+      - mkdir -p ../src/main/resources/static
+      - cp -r dist/. ../src/main/resources/static/
+
+  build:
+    desc: Full production build — React → static/ → Gradle JAR
+    cmds:
+      - task: build:frontend
+      - ./gradlew build
+
+  jlink:
+    desc: Build the self-contained JLink runtime image (includes the React UI)
+    cmds:
+      - task: build
+      - ./gradlew jlink
+
+  test:
+    desc: Run all tests — Vitest (frontend) and Gradle (backend)
+    cmds:
+      - cd frontend && npm test -- --run
+      - ./gradlew test
+
+  lint:
+    desc: Lint frontend (ESLint) and backend (Checkstyle / SpotBugs)
+    cmds:
+      - cd frontend && npm run lint
+      - ./gradlew check -x test
+
+  clean:
+    desc: Remove all build artefacts
+    cmds:
+      - rm -rf frontend/dist src/main/resources/static build
+      - ./gradlew clean
+```
+
+Install Task once: `brew install go-task` (macOS) or `go install github.com/go-task/task/v3/cmd/task@latest`. After that, every workflow is `task <name>`.
+
+| Task | What it does |
+|---|---|
+| `task install` | `npm install` inside `frontend/` |
+| `task dev` | Hot-reload React on :5173, Spring Boot on :8080 — both started in parallel |
+| `task build` | React production build → `static/` → Gradle JAR |
+| `task jlink` | `task build` + `./gradlew jlink` → self-contained `dist/` runtime |
+| `task test` | Vitest + Gradle test suites |
+| `task lint` | ESLint + Checkstyle |
+| `task clean` | Wipe all generated artefacts |
+
+During development (`task dev`), Vite forwards all `/api/*` requests to `http://localhost:8080` via `vite.config.ts`:
+
+```ts
+// frontend/vite.config.ts
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    proxy: {
+      '/api': 'http://localhost:8080',
+    },
+  },
+})
+```
+
+In production the proxy is not needed — the React build is served from Spring Boot itself on port 8080.
+
+### 9.4 Environment Configuration (.env)
+
+Sensitive credentials and environment-specific values are kept in a `.env` file at the project root. This file is **gitignored**. A committed `.env.example` documents every required variable with placeholder values.
+
+```bash
+# .env.example  (commit this)
+# Copy to .env and fill in real values — never commit .env
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Team mode only
+DB_PASSWORD=changeme
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/enterpriseclaw
+SPRING_DATASOURCE_USERNAME=ec
+
+# Optional overrides
+SPRING_PROFILES_ACTIVE=solo
+SERVER_PORT=8080
+```
+
+`Taskfile.yml` loads `.env` automatically via `dotenv: ['.env']` — every `task` command has the variables in its environment without any manual `export` or `source .env`.
+
+Spring Boot reads the same variables through `${...}` placeholders in `application.yml`:
+
+```yaml
+# application.yml excerpt
+spring:
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY}
+```
+
+For Docker Compose, the same `.env` file is picked up automatically by Compose when it is placed alongside `docker-compose.yml`.
+
+**Variable precedence (highest → lowest):**
+
+1. OS environment variable (`export OPENAI_API_KEY=...`)
+2. `.env` file (loaded by Taskfile / Docker Compose / Spring Boot dotenv)
+3. `application.yml` / `application-{profile}.yml` defaults
 
 ---
 
@@ -624,8 +809,8 @@ EnterpriseClaw supports three installation paths. All of them end the same way: 
 [JLink](https://docs.oracle.com/en/java/javase/21/docs/specs/man/jlink.html) bundles only the JDK modules the application needs into a minimal custom runtime. The resulting image runs without a system JDK installed. The JLink image must be built with the same JDK version (Java 21) as the application is compiled with:
 
 ```bash
-# Build the JLink image (CI/release pipeline step)
-./gradlew jlink
+# Build the React UI, copy it into static/, build the JAR, then build the JLink image
+task jlink
 
 # Resulting layout — copy the entire dist/ folder anywhere
 dist/
@@ -636,7 +821,15 @@ dist/
 └── .claude/skills/             # bundled default skills
 ```
 
-Run from the dist folder:
+Run from the dist folder (credentials are loaded from `.env` in the working directory, or set as environment variables):
+
+```bash
+# With .env in the working directory — Taskfile / shell reads it automatically
+task jlink          # build once
+./dist/bin/enterpriseclaw   # run
+```
+
+Or inline:
 
 ```bash
 OPENAI_API_KEY=sk-... ./dist/bin/enterpriseclaw
@@ -646,7 +839,13 @@ This is the recommended distribution format for enterprise deployments where ins
 
 ### 10.2 Docker — Single Container
 
+The Docker image is built from the Spring Boot JAR that already contains the React UI (produced by `task build`):
+
 ```bash
+# Build the JAR with the React UI embedded
+task build
+
+# Build and run the Docker image
 docker run -p 8080:8080 \
   -e OPENAI_API_KEY=sk-... \
   -v "$(pwd)/.claude/skills":/app/.claude/skills \
@@ -697,7 +896,7 @@ volumes:
   pg-data:
 ```
 
-Create a `.env` file alongside it:
+Create a `.env` file at the project root (copy from `.env.example` and fill in real values):
 
 ```bash
 DB_PASSWORD=changeme
@@ -910,4 +1109,4 @@ server:
 | **Cost Governance** | Implement per-user token budget enforcement using data collected by `EnterpriseAuditAdvisor` |
 | **Skill Marketplace** | Publish first-party SkillsJars to Maven Central so users can add capabilities as Gradle dependencies |
 | **Event-Driven CronJobs** | Allow cron jobs to trigger on webhook calls or database change events in addition to time expressions |
-| **Mobile Web UI** | Ensure the Thymeleaf + HTMX UI is fully usable on mobile browsers for on-the-go agent interactions |
+| **Mobile Web UI** | Ensure the React UI is fully usable on mobile browsers — responsive layout and touch-friendly controls for on-the-go agent interactions |
