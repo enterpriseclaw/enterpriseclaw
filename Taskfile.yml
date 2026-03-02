@@ -1,0 +1,80 @@
+version: '3'
+
+dotenv: ['.env']
+
+tasks:
+
+  install:
+    desc: Install frontend dependencies
+    dir: frontend
+    cmds:
+      - bun install
+
+  dev:frontend:
+    desc: Start Vite dev server
+    dir: frontend
+    cmds:
+      - bun run dev
+
+  dev:backend:
+    desc: Start Spring Boot
+    cmds:
+      - ./gradlew bootRun
+
+  dev:
+    desc: Start both frontend and backend
+    deps: [dev:frontend, dev:backend]
+
+  build:frontend:
+    desc: Build React and copy to static/
+    dir: frontend
+    cmds:
+      - bun run build
+      - mkdir -p ../src/main/resources/static
+      - cp -r dist/. ../src/main/resources/static/
+
+  build:
+    desc: Full production build
+    cmds:
+      - task: build:frontend
+      - ./gradlew build
+
+  test:backend:
+    desc: Run backend tests
+    cmds:
+      - ./gradlew test
+
+  test:frontend:
+    desc: Run frontend tests
+    dir: frontend
+    cmds:
+      - bun run vitest --run
+
+  test:
+    desc: Run all tests
+    cmds:
+      - task: test:backend
+      - task: test:frontend
+
+  lint:frontend:
+    desc: Lint frontend
+    dir: frontend
+    cmds:
+      - bun run lint
+
+  lint:backend:
+    desc: Lint backend
+    cmds:
+      - ./gradlew check -x test
+
+  lint:
+    desc: Lint everything
+    cmds:
+      - task: lint:frontend
+      - task: lint:backend
+
+  clean:
+    desc: Remove all build artefacts
+    cmds:
+      - rm -rf frontend/dist src/main/resources/static build
+      - ./gradlew clean

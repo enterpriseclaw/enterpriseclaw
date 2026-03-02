@@ -1,0 +1,24 @@
+spring:
+  profiles:
+    active: solo
+  datasource:
+    url: jdbc:h2:file:./data/enterpriseclaw
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ''
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+
+server:
+  address: 127.0.0.1
+  port: 8080
