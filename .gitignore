@@ -53,6 +53,9 @@ tmp/
 temp/
 *.tmp
 
+# Java/JVM build artifacts at project root
+META-INF/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -92,4 +95,4 @@ obj/
 *.backup
 *.orig
 .history/
-reference
+/tmp/

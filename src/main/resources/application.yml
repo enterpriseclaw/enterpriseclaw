@@ -1,6 +1,16 @@
 spring:
   profiles:
     active: solo
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:}
+    mcp:
+      server:
+        enabled: false
+      client:
+        enabled: false
   datasource:
     url: jdbc:h2:file:./data/enterpriseclaw
     driver-class-name: org.h2.Driver
