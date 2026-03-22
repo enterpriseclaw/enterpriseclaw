@@ -16,6 +16,17 @@ configurations {
     compileOnly {
         extendsFrom annotationProcessor
     }
+    integrationTestImplementation.extendsFrom testImplementation
+    integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
+}
+
+sourceSets {
+    integrationTest {
+        java.srcDir 'src/integrationTest/java'
+        resources.srcDir 'src/integrationTest/resources'
+        compileClasspath += sourceSets.main.output + sourceSets.test.output
+        runtimeClasspath += sourceSets.main.output + sourceSets.test.output
+    }
 }
 
 repositories {
@@ -63,10 +74,32 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-data-jpa-test'
     testImplementation 'org.wiremock:wiremock-standalone:3.5.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // Testcontainers — real PostgreSQL/pgvector + Ollama for integration tests
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:postgresql:1.20.6'
+    testImplementation 'org.testcontainers:junit-jupiter:1.20.6'
+    testImplementation 'org.testcontainers:ollama:1.20.6'
+
+    // Spring AI — local Ollama model for integration testing
+    testImplementation 'org.springframework.ai:spring-ai-starter-model-ollama'
 }
 
 tasks.named('test') {
+    useJUnitPlatform {
+        excludeTags 'integration'
+    }
+    jvmArgs '-Dspring.ai.openai.api-key=test-key-disabled'
+    jvmArgs '-Dspring.ai.anthropic.api-key=test-key-disabled'
+}
+
+tasks.register('integrationTest', Test) {
+    description = 'Runs integration tests using Testcontainers (requires Docker).'
+    group = 'verification'
+    testClassesDirs = sourceSets.integrationTest.output.classesDirs
+    classpath = sourceSets.integrationTest.runtimeClasspath
     useJUnitPlatform()
     jvmArgs '-Dspring.ai.openai.api-key=test-key-disabled'
     jvmArgs '-Dspring.ai.anthropic.api-key=test-key-disabled'
+    shouldRunAfter test
 }
