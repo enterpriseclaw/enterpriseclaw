@@ -4,7 +4,7 @@ import com.enterpriseclaw.chat.dto.AnswerRequest;
 import com.enterpriseclaw.chat.dto.ChatEvent;
 import com.enterpriseclaw.chat.dto.ChatRequest;
 import com.enterpriseclaw.chat.dto.SessionSummary;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;

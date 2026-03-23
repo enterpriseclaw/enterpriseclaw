@@ -16,17 +16,19 @@ configurations {
     compileOnly {
         extendsFrom annotationProcessor
     }
-    integrationTestImplementation.extendsFrom testImplementation
-    integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
 }
 
 sourceSets {
     integrationTest {
         java.srcDir 'src/integrationTest/java'
-        resources.srcDir 'src/integrationTest/resources'
         compileClasspath += sourceSets.main.output + sourceSets.test.output
         runtimeClasspath += sourceSets.main.output + sourceSets.test.output
     }
+}
+
+configurations {
+    integrationTestImplementation.extendsFrom testImplementation
+    integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
 }
 
 repositories {
@@ -51,6 +53,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
+    implementation 'org.springframework.boot:spring-boot-flyway'
 
     // Spring AI — model starters (new naming convention in 1.0)
     implementation 'org.springframework.ai:spring-ai-starter-model-openai'
@@ -101,5 +104,8 @@ tasks.register('integrationTest', Test) {
     useJUnitPlatform()
     jvmArgs '-Dspring.ai.openai.api-key=test-key-disabled'
     jvmArgs '-Dspring.ai.anthropic.api-key=test-key-disabled'
+    // Force config location to the integration test YAML so it is never shadowed
+    // by src/test/resources/application.yml or src/main/resources/application.yml.
+    jvmArgs '-Dspring.config.location=classpath:/integrationtest/'
     shouldRunAfter test
 }

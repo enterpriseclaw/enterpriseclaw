@@ -11,6 +11,7 @@ import com.enterpriseclaw.tenant.TenantRepository;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -28,6 +29,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Integration test for the enterprise gateway pipeline using a real
  * PostgreSQL + pgvector database via Testcontainers.
  *
+ * <p>The container is wired to Spring Boot via {@code @ServiceConnection}, which
+ * creates a {@code JdbcConnectionDetails} bean used by both the DataSource and
+ * Flyway — guaranteeing all three (datasource / Flyway / Hibernate) point at the
+ * same PostgreSQL instance.
+ *
  * <p>Tests:
  * <ul>
  *   <li>Full gateway execution (identity → policy → audit)</li>
@@ -39,21 +45,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>Run: {@code ./gradlew integrationTest}
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE,
-        properties = {
-                "spring.flyway.enabled=true",
-                "spring.jpa.hibernate.ddl-auto=validate",
-                "spring.ai.openai.api-key=test-key-disabled",
-                "spring.ai.anthropic.api-key=test-key-disabled",
-                "spring.ai.ollama.chat.enabled=false",
-                "spring.ai.mcp.server.enabled=false",
-                "spring.ai.mcp.client.enabled=false"
-        })
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @Testcontainers(disabledWithoutDocker = true)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class GatewayIntegrationTest {
 
     @Container
+    @ServiceConnection
     static PostgreSQLContainer<?> postgres =
             new PostgreSQLContainer<>(DockerImageName.parse("pgvector/pgvector:pg16")
                     .asCompatibleSubstituteFor("postgres"))
@@ -61,17 +59,11 @@ class GatewayIntegrationTest {
                     .withUsername("enterpriseclaw")
                     .withPassword("enterpriseclaw");
 
+    /** PostgreSQL dialect is needed because it cannot be inferred from JdbcConnectionDetails alone. */
     @DynamicPropertySource
-    static void configureDataSource(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-        registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
+    static void configureJpa(DynamicPropertyRegistry registry) {
         registry.add("spring.jpa.properties.hibernate.dialect",
                 () -> "org.hibernate.dialect.PostgreSQLDialect");
-        // pgvector extension — initialized by the pgvector image automatically
-        registry.add("spring.ai.vectorstore.pgvector.initialize-schema", () -> "true");
-        registry.add("spring.ai.vectorstore.pgvector.dimensions", () -> "1536");
     }
 
     @Autowired
