@@ -10,12 +10,14 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.ai.ollama.api.OllamaApi;
 import org.springframework.ai.ollama.api.OllamaOptions;
+import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.ollama.OllamaContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Integration test that wires Spring AI Generic Agent Skills (@Tool) against a
@@ -58,7 +60,17 @@ class OllamaSkillIntegrationTest {
     @BeforeAll
     static void setup() throws Exception {
         log.info("Pulling model {} — this may take a few minutes on first run", MODEL);
-        ollama.execInContainer("ollama", "pull", MODEL);
+        ExecResult pullResult = ollama.execInContainer("ollama", "pull", MODEL);
+        if (pullResult.getExitCode() != 0) {
+            log.warn("Model pull failed (exit={}); Ollama registry may be unreachable. "
+                    + "Skipping all inference tests.\nstderr: {}",
+                    pullResult.getExitCode(), pullResult.getStderr());
+            // Skip the entire test class when the model is unavailable (e.g. no internet in CI)
+            assumeTrue(pullResult.getExitCode() == 0,
+                    "Ollama model '" + MODEL + "' could not be pulled — "
+                    + "requires internet access to registry.ollama.ai");
+            return;
+        }
         log.info("Model {} ready", MODEL);
 
         OllamaApi api = OllamaApi.builder()

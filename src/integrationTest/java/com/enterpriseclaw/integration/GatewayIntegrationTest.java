@@ -59,7 +59,8 @@ class GatewayIntegrationTest {
                     .withUsername("enterpriseclaw")
                     .withPassword("enterpriseclaw");
 
-    /** PostgreSQL dialect is needed because it cannot be inferred from JdbcConnectionDetails alone. */
+    /** PostgreSQL dialect: must be set explicitly; {@code @ServiceConnection} auto-configures
+     * the DataSource and Flyway via JdbcConnectionDetails but does not set JPA dialect. */
     @DynamicPropertySource
     static void configureJpa(DynamicPropertyRegistry registry) {
         registry.add("spring.jpa.properties.hibernate.dialect",
