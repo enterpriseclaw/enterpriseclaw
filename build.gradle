@@ -1,17 +1,34 @@
 plugins {
-    id 'org.springframework.boot' version '3.4.3'
-    id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.springframework.boot' version '4.0.0-RC2'
     id 'java'
 }
 
 group = 'com.enterpriseclaw'
 version = '0.0.1-SNAPSHOT'
-sourceCompatibility = '21'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
 
 configurations {
     compileOnly {
         extendsFrom annotationProcessor
     }
+}
+
+sourceSets {
+    integrationTest {
+        java.srcDir 'src/integrationTest/java'
+        compileClasspath += sourceSets.main.output + sourceSets.test.output
+        runtimeClasspath += sourceSets.main.output + sourceSets.test.output
+    }
+}
+
+configurations {
+    integrationTestImplementation.extendsFrom testImplementation
+    integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
 }
 
 repositories {
@@ -21,16 +38,33 @@ repositories {
 }
 
 dependencies {
-    implementation platform('org.springframework.ai:spring-ai-bom:1.0.0-M6')
+    implementation enforcedPlatform('org.springframework.boot:spring-boot-dependencies:4.0.0-RC2')
+    implementation platform('org.springframework.ai:spring-ai-bom:1.0.0')
+    compileOnly enforcedPlatform('org.springframework.boot:spring-boot-dependencies:4.0.0-RC2')
+    compileOnly platform('org.springframework.ai:spring-ai-bom:1.0.0')
+    annotationProcessor enforcedPlatform('org.springframework.boot:spring-boot-dependencies:4.0.0-RC2')
+    annotationProcessor platform('org.springframework.ai:spring-ai-bom:1.0.0')
+    testImplementation enforcedPlatform('org.springframework.boot:spring-boot-dependencies:4.0.0-RC2')
+    testImplementation platform('org.springframework.ai:spring-ai-bom:1.0.0')
 
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+    implementation 'org.springframework.boot:spring-boot-flyway'
 
-    implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
-    implementation 'org.springframework.ai:spring-ai-anthropic-spring-boot-starter'
+    // Spring AI — model starters (new naming convention in 1.0)
+    implementation 'org.springframework.ai:spring-ai-starter-model-openai'
+    implementation 'org.springframework.ai:spring-ai-starter-model-anthropic'
+
+    // Spring AI — MCP server/client (Generic Agent Skills)
+    implementation 'org.springframework.ai:spring-ai-starter-mcp-server'
+    implementation 'org.springframework.ai:spring-ai-starter-mcp-client'
+
+    // Spring AI — PGVector for semantic search
+    implementation 'org.springframework.ai:spring-ai-starter-vector-store-pgvector'
 
     runtimeOnly 'com.h2database:h2'
     runtimeOnly 'org.postgresql:postgresql'
@@ -39,10 +73,39 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-webmvc-test'
+    testImplementation 'org.springframework.boot:spring-boot-data-jpa-test'
     testImplementation 'org.wiremock:wiremock-standalone:3.5.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // Testcontainers — real PostgreSQL/pgvector + Ollama for integration tests
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:postgresql:1.20.6'
+    testImplementation 'org.testcontainers:junit-jupiter:1.20.6'
+    testImplementation 'org.testcontainers:ollama:1.20.6'
+
+    // Spring AI — local Ollama model for integration testing
+    testImplementation 'org.springframework.ai:spring-ai-starter-model-ollama'
 }
 
 tasks.named('test') {
+    useJUnitPlatform {
+        excludeTags 'integration'
+    }
+    jvmArgs '-Dspring.ai.openai.api-key=test-key-disabled'
+    jvmArgs '-Dspring.ai.anthropic.api-key=test-key-disabled'
+}
+
+tasks.register('integrationTest', Test) {
+    description = 'Runs integration tests using Testcontainers (requires Docker).'
+    group = 'verification'
+    testClassesDirs = sourceSets.integrationTest.output.classesDirs
+    classpath = sourceSets.integrationTest.runtimeClasspath
     useJUnitPlatform()
+    jvmArgs '-Dspring.ai.openai.api-key=test-key-disabled'
+    jvmArgs '-Dspring.ai.anthropic.api-key=test-key-disabled'
+    // Force config location to the integration test YAML so it is never shadowed
+    // by src/test/resources/application.yml or src/main/resources/application.yml.
+    jvmArgs '-Dspring.config.location=classpath:/integrationtest/'
+    shouldRunAfter test
 }
