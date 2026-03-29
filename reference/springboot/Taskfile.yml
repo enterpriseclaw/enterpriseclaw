@@ -1,0 +1,54 @@
+version: '3'
+
+dotenv: ["./.env"]
+
+tasks:
+  # Local Starts
+  start:postgres:
+    desc: Start local PostgreSQL using Docker Compose
+    cmds:
+      - docker network create springisession-network || echo "✅ Network springisession-network already exists"
+      - docker compose -f docker-compose-postgres.yaml up -d
+
+  stop:postgres:
+    desc: Stop local PostgreSQL Docker Compose instance
+    cmds:
+      - docker compose -f docker-compose-postgres.yaml down
+
+  clear:postgres:
+    desc: Clear PostgreSQL containers, volumes, and all data (WARNING - deletes all data)
+    cmds:
+      - docker compose -f docker-compose-postgres.yaml down -v
+      - echo "✅ PostgreSQL containers and volumes cleared"
+      
+  build:
+    desc: Build fat jar
+    cmds:
+      - ./gradlew clean build -x test
+
+  dev:
+    desc: Run Spring Boot with fast startup and auto-restart
+    cmds:
+      - ./gradlew bootRun --continuous
+
+  docker-run:
+    desc: Build Docker image and run with Docker Compose (synchronous)
+    cmds:
+      - docker-compose build
+      - docker-compose up
+
+  test:
+    desc: Run HTTP tests for chatplain endpoint using ijhttp
+    cmds:
+      - ijhttp --env-file requests/http-client.env.json --env dev requests/session1/chatplain.http
+
+  setup:
+    desc: Install required tools (ijhttp)
+    cmds:
+      - brew install ijhttp
+
+  clean-gradle:
+    desc: Stop all Gradle daemons and clean cache (fixes incompatible daemon issues)
+    cmds:
+      - ./gradlew --stop
+      - echo "All Gradle daemons stopped. Next build will start fresh."

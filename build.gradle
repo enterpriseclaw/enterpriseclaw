@@ -39,13 +39,13 @@ repositories {
 
 dependencies {
     implementation enforcedPlatform('org.springframework.boot:spring-boot-dependencies:4.0.0-RC2')
-    implementation platform('org.springframework.ai:spring-ai-bom:1.0.0')
+    implementation platform('org.springframework.ai:spring-ai-bom:2.0.0-M3')
     compileOnly enforcedPlatform('org.springframework.boot:spring-boot-dependencies:4.0.0-RC2')
-    compileOnly platform('org.springframework.ai:spring-ai-bom:1.0.0')
+    compileOnly platform('org.springframework.ai:spring-ai-bom:2.0.0-M3')
     annotationProcessor enforcedPlatform('org.springframework.boot:spring-boot-dependencies:4.0.0-RC2')
-    annotationProcessor platform('org.springframework.ai:spring-ai-bom:1.0.0')
+    annotationProcessor platform('org.springframework.ai:spring-ai-bom:2.0.0-M3')
     testImplementation enforcedPlatform('org.springframework.boot:spring-boot-dependencies:4.0.0-RC2')
-    testImplementation platform('org.springframework.ai:spring-ai-bom:1.0.0')
+    testImplementation platform('org.springframework.ai:spring-ai-bom:2.0.0-M3')
 
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -55,7 +55,7 @@ dependencies {
     implementation 'org.flywaydb:flyway-database-postgresql'
     implementation 'org.springframework.boot:spring-boot-flyway'
 
-    // Spring AI — model starters (new naming convention in 1.0)
+    // Spring AI — model starters (Spring AI 2.0)
     implementation 'org.springframework.ai:spring-ai-starter-model-openai'
     implementation 'org.springframework.ai:spring-ai-starter-model-anthropic'
 
@@ -65,6 +65,9 @@ dependencies {
 
     // Spring AI — PGVector for semantic search
     implementation 'org.springframework.ai:spring-ai-starter-vector-store-pgvector'
+
+    // Spring AI Agent Utils — SkillsTool, AskUserQuestionTool, TodoWriteTool, TaskTool
+    implementation 'org.springaicommunity:spring-ai-agent-utils:0.5.0'
 
     runtimeOnly 'com.h2database:h2'
     runtimeOnly 'org.postgresql:postgresql'

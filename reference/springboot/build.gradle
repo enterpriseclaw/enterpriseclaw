@@ -1,0 +1,54 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.0.3'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'tools.muthuishere'
+version = '0.0.1-SNAPSHOT'
+description = 'session1-llm-as-api'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+
+    // For Spring AI 2.0
+
+    maven { url 'https://repo.spring.io/milestone' }
+    maven { url 'https://repo.spring.io/snapshot' }
+    maven {
+        name = 'Central Portal Snapshots'
+        url = 'https://central.sonatype.com/repository/maven-snapshots/'
+    }
+}
+
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+
+    implementation platform("org.springframework.ai:spring-ai-bom:2.0.0-M2")
+    implementation 'org.springframework.ai:spring-ai-starter-model-openai'
+    implementation 'org.springframework.ai:spring-ai-starter-vector-store-pgvector'
+    implementation 'org.springframework.ai:spring-ai-advisors-vector-store'
+
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

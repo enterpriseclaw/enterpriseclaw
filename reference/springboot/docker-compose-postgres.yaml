@@ -1,0 +1,32 @@
+services:
+  postgres:
+    hostname: postgres
+    image: pgvector/pgvector:pg16
+    container_name: springisession-creator-postgres
+    env_file: .env
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    restart: always
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/initdb:/docker-entrypoint-initdb.d
+    command: postgres -c shared_preload_libraries=vector -c max_connections=200
+    networks:
+      - springisession-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+networks:
+  springisession-network:
+    external: true
+
+volumes:
+  postgres_data:

@@ -1,0 +1,142 @@
+### Tool Calling - Ask about products (calls getProducts)
+POST {{baseurl}}/api/tools/chat
+Content-Type: application/json
+
+{
+  "question": "What products do you have in stock?",
+  "sessionId": "tools-test-1"
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Response mentions products", function() {
+        var answer = response.body.answer.toLowerCase();
+        client.assert(answer.includes("spring ai") || answer.includes("java") || answer.includes("product"),
+            "Response should mention products from inventory");
+    });
+%}
+
+###
+
+### Tool Calling - Search for a specific product (calls searchProduct)
+POST {{baseurl}}/api/tools/chat
+Content-Type: application/json
+
+{
+  "question": "Do you have anything about Kubernetes?",
+  "sessionId": "tools-test-2"
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Response mentions Kubernetes", function() {
+        var answer = response.body.answer.toLowerCase();
+        client.assert(answer.includes("kubernetes"), "Response should mention Kubernetes product");
+    });
+%}
+
+###
+
+### Tool Calling - Ask about employees (calls getEmployees)
+POST {{baseurl}}/api/tools/chat
+Content-Type: application/json
+
+{
+  "question": "Who works in the Engineering department?",
+  "sessionId": "tools-test-3"
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Response mentions engineers", function() {
+        var answer = response.body.answer.toLowerCase();
+        client.assert(answer.includes("alice") || answer.includes("bob"),
+            "Response should mention Engineering employees");
+    });
+%}
+
+###
+
+### Tool Calling - Count in-stock products (calls getInStockCount)
+POST {{baseurl}}/api/tools/chat
+Content-Type: application/json
+
+{
+  "question": "How many products are currently in stock?",
+  "sessionId": "tools-test-4"
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Response has a count", function() {
+        var answer = response.body.answer.toLowerCase();
+        client.assert(answer.includes("3") || answer.includes("three"),
+            "Response should mention 3 products in stock");
+    });
+%}
+
+###
+
+### Tool Calling - Cross-domain question (LLM calls MULTIPLE tools)
+POST {{baseurl}}/api/tools/chat
+Content-Type: application/json
+
+{
+  "question": "How many products are in stock and how many engineers do we have?",
+  "sessionId": "tools-test-5"
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Response covers both domains", function() {
+        var answer = response.body.answer.toLowerCase();
+        var hasProducts = answer.includes("product") || answer.includes("stock") || answer.includes("3");
+        var hasEmployees = answer.includes("engineer") || answer.includes("alice") || answer.includes("bob");
+        client.assert(hasProducts && hasEmployees, "Response should mention both products and employees");
+    });
+%}
+
+###
+
+### Tool Calling - Limitation (no tool for this)
+POST {{baseurl}}/api/tools/chat
+Content-Type: application/json
+
+{
+  "question": "Summarize our 200-page compliance report from last quarter",
+  "sessionId": "tools-test-6"
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("LLM admits limitation", function() {
+        var answer = response.body.answer.toLowerCase();
+        var admitsLimitation = answer.includes("don't have") ||
+                               answer.includes("cannot") ||
+                               answer.includes("no access") ||
+                               answer.includes("not available") ||
+                               answer.includes("unable") ||
+                               answer.includes("don't see");
+        client.assert(admitsLimitation, "LLM should admit it can't access compliance reports");
+    });
+%}
+
+###

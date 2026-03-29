@@ -1,0 +1,244 @@
+### Chat Plain - Ask a Question
+POST {{baseurl}}/api/chatplain
+Content-Type: application/json
+
+{
+  "question": "What is the capital of France?",
+  "sessionId": "test-session-123"
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+    
+    client.test("Response has valid structure", function() {
+        var body = response.body;
+        client.assert(body !== null && body !== undefined, "Response body is empty");
+        client.assert(body.question !== undefined, "Response missing 'question' field");
+        client.assert(body.answer !== undefined, "Response missing 'answer' field");
+    });
+    
+    client.test("Response fields are not empty", function() {
+        var body = response.body;
+        client.assert(body.question.length > 0, "Question field is empty");
+        client.assert(body.answer.length > 0, "Answer field is empty");
+    });
+    
+    client.test("Question matches request", function() {
+        var body = response.body;
+        client.assert(body.question === "What is the capital of France?", "Question doesn't match request");
+    });
+%}
+
+###
+
+### Chat Plain - Programming Question
+POST {{baseurl}}/api/chatplain
+Content-Type: application/json
+
+{
+  "question": "Explain what is Spring Boot in one sentence",
+  "sessionId": "test-session-456"
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+    
+    client.test("Response is not empty", function() {
+        var body = response.body;
+        client.assert(body !== null && body !== undefined, "Response body is empty");
+        client.assert(body.answer.length > 0, "Answer is empty");
+    });
+%}
+
+###
+
+### Chat with System Prompt
+POST {{baseurl}}/api/chat
+Content-Type: application/json
+
+{
+  "question": "What is dependency injection?",
+  "sessionId": "test-session-789"
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Response has valid structure", function() {
+        var body = response.body;
+        client.assert(body.question !== undefined, "Response missing 'question' field");
+        client.assert(body.answer !== undefined, "Response missing 'answer' field");
+        client.assert(body.answer.length > 0, "Answer is empty");
+    });
+%}
+
+###
+
+### Chat with Memory - First message
+POST {{baseurl}}/api/chatmemory
+Content-Type: application/json
+
+{
+  "question": "My name is Muthu and I am from Coimbatore",
+  "sessionId": "memory-session-1"
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Response is not empty", function() {
+        client.assert(response.body.answer.length > 0, "Answer is empty");
+    });
+%}
+
+###
+
+### Chat with Memory - Second message (should remember name)
+POST {{baseurl}}/api/chatmemory
+Content-Type: application/json
+
+{
+  "question": "What is my name and where am I from?",
+  "sessionId": "memory-session-1"
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Response remembers context", function() {
+        var answer = response.body.answer.toLowerCase();
+        client.assert(answer.includes("muthu"), "Response should remember the name 'Muthu'");
+    });
+%}
+
+###
+
+### Chat without Memory - Same session ID but different endpoint (should NOT remember)
+POST {{baseurl}}/api/chat
+Content-Type: application/json
+
+{
+  "question": "What is my name?",
+  "sessionId": "memory-session-1"
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Response does NOT remember (no memory)", function() {
+        var answer = response.body.answer.toLowerCase();
+        client.assert(!answer.includes("muthu"), "Plain chat should NOT remember the name");
+    });
+%}
+
+###
+
+### Full ChatResponse - See metadata, usage tokens, model info
+POST {{baseurl}}/api/chatresponse
+Content-Type: application/json
+
+{
+  "question": "What is Java?",
+  "sessionId": "response-test"
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Response has metadata with usage info", function() {
+        var body = response.body;
+        client.assert(body.metadata !== undefined, "Missing 'metadata'");
+        var usage = body.metadata.usage;
+        client.assert(usage !== undefined, "Missing 'usage' in metadata");
+        client.assert(usage.promptTokens > 0, "promptTokens should be > 0");
+        client.assert(usage.completionTokens > 0, "completionTokens should be > 0");
+        client.assert(usage.totalTokens > 0, "totalTokens should be > 0");
+    });
+
+    client.test("Response has generation result", function() {
+        var results = response.body.results;
+        client.assert(results !== undefined && results.length > 0, "Missing 'results'");
+        client.assert(results[0].output !== undefined, "Missing 'output' in first result");
+        client.assert(results[0].output.text.length > 0, "Output text is empty");
+    });
+%}
+
+###
+
+### Structured Output - Book Recommendation
+GET {{baseurl}}/api/recommend?genre=science-fiction
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Response has structured fields", function() {
+        var body = response.body;
+        client.assert(body.title !== undefined && body.title.length > 0, "Missing or empty 'title'");
+        client.assert(body.author !== undefined && body.author.length > 0, "Missing or empty 'author'");
+        client.assert(body.reason !== undefined && body.reason.length > 0, "Missing or empty 'reason'");
+    });
+%}
+
+###
+
+### Structured Output - Different Genre
+GET {{baseurl}}/api/recommend?genre=mystery
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Response is valid JSON with all fields", function() {
+        var body = response.body;
+        client.assert(body.title !== undefined, "Missing 'title'");
+        client.assert(body.author !== undefined, "Missing 'author'");
+        client.assert(body.reason !== undefined, "Missing 'reason'");
+    });
+%}
+
+###
+
+### The Limitation - Ask about YOUR data (LLM can't answer)
+POST {{baseurl}}/api/chatplain
+Content-Type: application/json
+
+{
+  "question": "What products are in our inventory right now?",
+  "sessionId": "limitation-test"
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("LLM admits it cannot access inventory", function() {
+        var answer = response.body.answer.toLowerCase();
+        var admitsLimitation = answer.includes("don't have access") ||
+                               answer.includes("cannot access") ||
+                               answer.includes("no access") ||
+                               answer.includes("don't have information") ||
+                               answer.includes("unable to") ||
+                               answer.includes("i don't know");
+        client.assert(admitsLimitation, "LLM should admit it can't access live inventory data");
+    });
+%}
+
+###

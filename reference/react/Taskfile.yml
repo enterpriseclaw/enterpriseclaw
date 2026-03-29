@@ -1,0 +1,16 @@
+version: '3'
+
+dotenv: ["../../.env"]
+
+tasks:
+
+
+  dev:
+    desc: Start web application development server
+    cmd: bun run dev
+   
+
+  docker-run:
+    desc: Build and run web application using Docker Compose
+    cmds:
+      - docker compose  up --build

@@ -1,0 +1,160 @@
+### RAG - Ingest sample documents about TechCorp
+POST {{baseurl}}/api/rag/documents
+Content-Type: application/json
+
+[
+  {"content": "TechCorp was founded in 2019 in Coimbatore, India. The company specializes in AI-powered developer tools."},
+  {"content": "TechCorp Q4 2025 revenue was 12.5 million dollars, a 40% increase from Q3. The growth was driven by the Spring AI toolkit launch."},
+  {"content": "TechCorp has 85 employees across 3 offices: Coimbatore (HQ), Bangalore, and Chennai. The engineering team has 52 members."},
+  {"content": "TechCorp company policy: All employees get 30 days of paid leave per year. Remote work is allowed 3 days per week."},
+  {"content": "TechCorp product roadmap 2026: Launch MCP marketplace in Q1, AI Agent platform in Q2, and enterprise RAG solution in Q3."}
+]
+
+> {%
+    client.test("Documents ingested successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.length === 5, "Should ingest 5 documents");
+    });
+%}
+
+###
+
+### RAG - Similarity search for revenue data
+POST {{baseurl}}/api/rag/search
+Content-Type: application/json
+
+{
+  "question": "What was the Q4 revenue?",
+  "sessionId": "rag-test"
+}
+
+> {%
+    client.test("Search returned results", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+        client.assert(response.body.length > 0, "Should return at least one document");
+    });
+
+    client.test("Most relevant result mentions revenue", function() {
+        var topResult = response.body[0].text.toLowerCase();
+        client.assert(topResult.includes("revenue") || topResult.includes("12.5"),
+            "Top result should mention revenue data");
+    });
+%}
+
+###
+
+### RAG - Chat about revenue (grounded answer)
+POST {{baseurl}}/api/rag/chat
+Content-Type: application/json
+
+{
+  "question": "What was TechCorp Q4 2025 revenue and what drove the growth?",
+  "sessionId": "rag-test"
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("RAG answer mentions specific data", function() {
+        var answer = response.body.answer.toLowerCase();
+        client.assert(answer.includes("12.5") || answer.includes("million"),
+            "Answer should mention 12.5 million revenue");
+    });
+%}
+
+###
+
+### Compare - Plain LLM (should NOT know TechCorp data)
+POST {{baseurl}}/api/chat
+Content-Type: application/json
+
+{
+  "question": "What was TechCorp Q4 2025 revenue and what drove the growth?",
+  "sessionId": "compare-test"
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Plain LLM does NOT know TechCorp data", function() {
+        var answer = response.body.answer.toLowerCase();
+        var knowsData = answer.includes("12.5 million") && answer.includes("spring ai toolkit");
+        client.assert(!knowsData, "Plain LLM should NOT have specific TechCorp revenue data");
+    });
+%}
+
+###
+
+### RAG - Ask about company policy
+POST {{baseurl}}/api/rag/chat
+Content-Type: application/json
+
+{
+  "question": "How many days of paid leave do employees get at TechCorp?",
+  "sessionId": "rag-test"
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Answer mentions 30 days", function() {
+        var answer = response.body.answer.toLowerCase();
+        client.assert(answer.includes("30"), "Answer should mention 30 days paid leave");
+    });
+%}
+
+###
+
+### RAG - Ask about product roadmap
+POST {{baseurl}}/api/rag/chat
+Content-Type: application/json
+
+{
+  "question": "What is TechCorp planning to launch in 2026?",
+  "sessionId": "rag-test"
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Answer mentions roadmap items", function() {
+        var answer = response.body.answer.toLowerCase();
+        var hasMcp = answer.includes("mcp");
+        var hasAgent = answer.includes("agent");
+        var hasRag = answer.includes("rag");
+        client.assert(hasMcp || hasAgent || hasRag, "Answer should mention roadmap items");
+    });
+%}
+
+###
+
+### RAG - Ask about employee count
+POST {{baseurl}}/api/rag/chat
+Content-Type: application/json
+
+{
+  "question": "How many employees does TechCorp have and where are the offices?",
+  "sessionId": "rag-test"
+}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Answer mentions employee count and offices", function() {
+        var answer = response.body.answer.toLowerCase();
+        client.assert(answer.includes("85") || answer.includes("coimbatore"),
+            "Answer should mention 85 employees or Coimbatore office");
+    });
+%}
+
+###

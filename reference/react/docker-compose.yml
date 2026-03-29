@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - VITE_BASE_API_URL=${VITE_BASE_API_URL}
+        - VITE_RECAPTCHA_SITE_KEY=${VITE_RECAPTCHA_SITE_KEY}
+    ports:
+      - "3080:8080"
+    restart: unless-stopped
+    container_name: web-app
