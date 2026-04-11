@@ -1,0 +1,13 @@
+version: '3.8'
+services:
+  enterpriseclaw-frontend:
+    build: .
+    ports:
+      - "3000:80"
+    networks:
+      - ec-network
+    depends_on:
+      - enterpriseclaw-server
+networks:
+  ec-network:
+    external: true

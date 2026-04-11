@@ -12,15 +12,17 @@
 
 | Layer | Technology |
 |---|---|
-| Backend | Java 21 + Spring Boot 3.4 + Spring AI |
+| Backend | Java 21 + Spring Boot 4.0.0-RC2 + Spring AI 2.0.0-M4 |
+| CLI | Plain Java 21 + Picocli + JLink |
 | Frontend | React 19 + TypeScript + Vite (Bun) |
-| Database | H2 (solo mode) / PostgreSQL (team mode) |
+| Database | H2 (solo mode) / PostgreSQL + pgvector (team mode) |
 | Migrations | Flyway |
-| Build | Gradle (backend) + Bun (frontend) |
-| Dev workflow | `Taskfile.yml` |
+| Skills | SKILL.md files in `skills/` folder |
+| Build | Gradle (server) + Bun (frontend) + JLink (CLI) |
+| Dev workflow | `Taskfile.yml` (Reqsume-style multi-app) |
 
-It reimplements the core concepts of [OpenClaw](https://github.com/openclaw) but removes the CLI and
-messaging-platform gateway in favour of a browser-first Spring Boot + React application.
+It reimplements the core concepts of [OpenClaw](https://github.com/openclaw) — agent loop, skills-as-folders,
+WebSocket RPC, CLI — using Java/Spring AI. Browser-first React UI replaces messaging channels.
 
 Key features: **Chat with AI agents**, **Agent Skills editor**, **CronJobs**, **Audit Log**,
 **Observability Dashboard**, **Settings**.
@@ -53,47 +55,35 @@ implementation:
 
 ```
 enterpriseclaw/
-├── AGENTS.md                          ← this file
-├── Taskfile.yml                       ← developer task runner
-├── .env.example                       ← env template
-├── build.gradle                       ← Gradle (backend)
-├── docs/
-│   ├── fsd-enterpriseclaw.md          ← Functional Specification (MUST READ)
-│   └── trd-enterpriseclaw.md          ← Technical Requirements Document
-├── src/
-│   ├── main/java/com/enterpriseclaw/
-│   │   ├── EnterpriseclawApplication.java
-│   │   ├── audit/                     ← AgentRunLog, AuditEvent entities + repos
-│   │   ├── chat/                      ← ChatController, ChatService, DTOs, entities
-│   │   └── cronjobs/                  ← ScheduledJob, JobExecution entities + repos
-│   └── test/java/com/enterpriseclaw/
-│       ├── audit/AgentRunLogRepositoryTest.java
-│       ├── chat/
-│       │   ├── ApiContractTest.java   ← E2E API contract tests (NEW in PR #2)
-│       │   ├── ChatControllerTest.java
-│       │   └── ChatSessionRepositoryTest.java
-│       └── cronjobs/ScheduledJobRepositoryTest.java
-└── frontend/
-    ├── package.json                   ← Bun / Vitest / React deps
-    ├── vite.config.ts
-    ├── vitest.config.ts
-    └── src/
-        ├── app/routing/AppRoutes.tsx  ← React router
-        ├── lib/
-        │   ├── config.ts              ← SINGLE source of truth for all API endpoints
-        │   └── http.ts                ← apiRequest, apiLongRequest (NDJSON), ApiError
-        ├── domain/
-        │   ├── chat/                  ← ChatPage, useChat hook, types
-        │   ├── skills/                ← SkillsPage, types
-        │   ├── cronjobs/              ← CronJobsPage, types
-        │   ├── dashboard/             ← DashboardPage, types
-        │   ├── audit/                 ← AuditLogPage, types
-        │   └── settings/              ← SettingsPage, types
-        └── tests/
-            ├── setup.ts               ← Vitest setup (jest-dom, MSW server start/stop)
-            ├── api-contracts.test.ts  ← E2E API contract tests (NEW in PR #2)
-            └── mocks/
-                └── server.ts          ← MSW node server with default handlers
+├── apps/
+│   ├── server/                        ← Spring Boot 4 + Spring AI (backend)
+│   │   ├── build.gradle
+│   │   ├── Taskfile.yml
+│   │   └── src/main/java/com/enterpriseclaw/
+│   │       ├── chat/                  ← ChatController, ChatService, DTOs, WebSocket
+│   │       ├── websocket/             ← JSON-RPC endpoint, method dispatcher
+│   │       ├── gateway/               ← Execution pipeline
+│   │       ├── skills/                ← @Tool implementations + registry
+│   │       ├── audit/                 ← AgentRunLog, AuditEvent
+│   │       ├── cronjobs/              ← ScheduledJob, JobExecution
+│   │       ├── tenant/                ← Multi-tenancy
+│   │       ├── identity/              ← User resolution
+│   │       └── policy/                ← Tool permissions
+│   ├── cli/                           ← Plain Java + Picocli + JLink
+│   │   └── src/main/java/com/enterpriseclaw/cli/
+│   └── frontend/                      ← React 19 + Vite + Bun
+│       └── src/
+│           ├── lib/config.ts          ← SINGLE source of truth for API endpoints
+│           ├── lib/http.ts            ← apiRequest, apiLongRequest (NDJSON)
+│           └── domain/                ← chat, skills, cronjobs, dashboard, audit, settings
+├── skills/                            ← SKILL.md files (OpenClaw-compatible format)
+├── docs/                              ← FSD, TRD, product spec
+├── infra/deploy/                      ← Kamal configs (per-app per-env)
+├── .env.sample                        ← Secrets template
+├── application.env                    ← Non-secret config (committed)
+├── Taskfile.yml                       ← Root orchestrator
+├── Taskfile.local.yml                 ← Local dev tasks
+└── docker-compose-postgres.yaml       ← Shared dev DB
 ```
 
 ---
@@ -143,26 +133,109 @@ The `POST /api/v1/chat` endpoint streams newline-delimited JSON (`application/x-
 ## 5. Development Workflow
 
 ```bash
-# Install frontend deps
-task install           # bun install inside frontend/
-
 # Start both servers (hot-reload)
-task dev               # Spring Boot :8080 + Vite :5173 (proxies /api → :8080)
+task local:dev:all        # Spring Boot :8080 + Vite :5173
 
-# Build the full artefact (React → static/ then Gradle JAR)
-task build
+# Or individually
+task local:dev:server     # Spring Boot only
+task local:dev:frontend   # Vite only
 
 # Run tests
-task test:backend      # ./gradlew test
-task test:frontend     # bun --cwd frontend vitest run
+task local:test:all       # All tests
+task local:test:server    # ./gradlew test
+task local:test:frontend  # bun vitest --run
+
+# Build
+task local:build:all      # Frontend + server JAR
+
+# Database (team mode)
+task local:postgres:start
+task local:postgres:shell
 ```
 
 The Vite dev server proxies `/api` → `http://localhost:8080`, so React code always uses relative
-paths (e.g. `/api/v1/sessions`).
+paths (e.g. `/api/v1/sessions`). Each app has its own `Taskfile.yml` under `apps/`.
 
 ---
 
-## 6. Coding Conventions
+## 6. Required Workflow
+
+For any non-trivial change, follow this sequence:
+
+1. Read the relevant code and existing docs first.
+2. Create a new spec in `docs/specs/` or update the existing spec that already owns that behavior.
+3. Implement only after the spec exists.
+4. Update durable docs if shipped behavior changed.
+5. Verify the implementation with the most relevant tests or validation commands available.
+
+Default to a spec for:
+
+- feature work
+- CLI behavior changes
+- provider/model integration changes
+- skills system changes (SKILL.md format, loading, registration)
+- WebSocket RPC protocol changes
+- settings and configuration changes
+- test strategy changes
+
+For very small changes, keep the ceremony small:
+
+- typo-only changes may skip a new spec
+- tightly scoped bug fixes should still update an existing spec or add a short new one
+
+### Spec Rules
+
+- Prefer updating an existing spec when the behavior already has a home in `docs/specs/`.
+- Create a new spec when the change introduces a distinct behavior, workflow, or subsystem concern.
+- Keep specs concrete. Describe user-visible behavior, config shape, edge cases, and acceptance criteria.
+- Specs should reflect intended behavior before implementation, not just summarize the code after the fact.
+
+Use `docs/specs/spec-template.md` when creating a new spec.
+
+### Implementation Follow-Through
+
+After code changes, check whether these also need updates:
+
+- `CLAUDE.md`
+- `AGENTS.md`
+- `docs/fsd-enterpriseclaw.md`
+- `docs/trd-enterpriseclaw.md`
+- `skills/*/SKILL.md` (if skill behavior changed)
+
+If user-visible behavior changed and the docs were not updated, the work is incomplete.
+
+### Verification Expectations
+
+Before closing work:
+
+- Run the narrowest useful tests first (`./gradlew test --tests "ClassName"`)
+- Run broader validation if the change crosses subsystem boundaries (`task local:test:all`)
+- Call out anything you could not verify
+
+Avoid claiming behavior that is not reflected in code, tests, or current docs.
+
+---
+
+## 7. LLM Providers
+
+All providers are proper Spring AI `ChatClient` beans sharing the same tool pipeline:
+
+| Provider | Auth | Detection | Model prefix |
+|----------|------|-----------|-------------|
+| OpenAI | API key in `.env` | Key non-empty | (none) |
+| Anthropic | API key in `.env` | Key non-empty | `claude` |
+| Ollama | None (localhost:11434) | Ollama running | `ollama:` |
+| Copilot | Token from `gh auth token` | gh CLI authenticated | `copilot:` |
+| Codex | JWT from `~/.codex/auth.json` | auth.json exists | `codex:` |
+
+- Copilot and Codex use `OpenAiChatModel` with custom base URLs — they implement the OpenAI-compatible chat completions API.
+- Tokens are read from existing CLI auth (no new OAuth flows needed).
+- Frontend fetches available models from `GET /api/v1/settings/models` — no hardcoded model list.
+- Model IDs are prefixed: `copilot:gpt-4.1`, `codex:gpt-5.4`, `ollama:llama3.2`. The prefix routes to the correct ChatClient; the name after the prefix goes to the API.
+
+---
+
+## 8. Coding Conventions
 
 ### Backend (Spring Boot)
 
@@ -178,7 +251,7 @@ See `_bmad-output/planning-artifacts/coding-style-springboot.md` for the full st
 
 ### Frontend (React / TypeScript)
 
-- All API base URL and endpoint paths live **only** in `frontend/src/lib/config.ts`.
+- All API base URL and endpoint paths live **only** in `apps/frontend/src/lib/config.ts`.
 - Use `apiRequest<T>()` for standard JSON requests; `apiLongRequest<T>()` for NDJSON streaming.
 - Domain logic lives in `src/domain/<name>/`: `types.ts`, `<Name>.service.ts`, `<Name>Page.tsx`.
 - Tests use Vitest + React Testing Library + MSW (`msw/node` for server-side interception).
@@ -188,7 +261,7 @@ See `_bmad-output/planning-artifacts/coding-style-reactjs.md` for the full style
 
 ---
 
-## 7. Testing Requirements
+## 9. Testing Requirements
 
 ### Backend
 
@@ -207,9 +280,9 @@ See `_bmad-output/planning-artifacts/coding-style-reactjs.md` for the full style
 
 ---
 
-## 8. Environment Variables
+## 10. Environment Variables
 
-Copy `.env.example` → `.env` and fill in at least one LLM key:
+Copy `.env.sample` → `.env` and fill in at least one LLM key. Non-secret config is in `application.env` (committed):
 
 | Variable | Required | Description |
 |---|---|---|
@@ -223,13 +296,32 @@ Copy `.env.example` → `.env` and fill in at least one LLM key:
 
 ---
 
-## 9. Key Files for AI Agents
+## 11. Documentation Map
+
+- `AGENTS.md`
+  This file. Quick reference for AI coding agents.
+- `CLAUDE.md`
+  Project guidance for Claude Code — build commands, architecture, coding conventions.
+- `docs/fsd-enterpriseclaw.md`
+  Full functional specification — user flows, all planned endpoints.
+- `docs/trd-enterpriseclaw.md`
+  Technical requirements — architecture, deployment, Spring AI details.
+- `docs/specs/`
+  Behavior specs and implementation plans. New feature/change work starts here.
+- `docs/specs/spec-template.md`
+  Template for new specs.
+- `apps/frontend/src/lib/config.ts`
+  Single source of truth for all API endpoints.
+- `skills/*/SKILL.md`
+  Skill definitions (OpenClaw-compatible format). Each skill is a folder with a SKILL.md.
+
+## 12. Key Files for AI Agents
 
 When implementing a new feature, read these files in order:
 
-1. `docs/fsd-enterpriseclaw.md` — user-facing specification (what to build)
-2. `docs/trd-enterpriseclaw.md` — technical specification (how to build it)
-3. `_bmad-output/planning-artifacts/coding-style-springboot.md` — backend style
-4. `_bmad-output/planning-artifacts/coding-style-reactjs.md` — frontend style
-5. `frontend/src/lib/config.ts` — canonical list of all API endpoints
-6. Existing tests in `src/test/` and `frontend/src/` — test patterns to follow
+1. `docs/specs/` — check for an existing spec, or create one
+2. `docs/fsd-enterpriseclaw.md` — user-facing specification (what to build)
+3. `docs/trd-enterpriseclaw.md` — technical specification (how to build it)
+4. `apps/frontend/src/lib/config.ts` — canonical list of all API endpoints
+5. Existing tests in `apps/server/src/test/` and `apps/frontend/src/` — test patterns to follow
+6. `skills/*/SKILL.md` — skill definitions (OpenClaw-compatible format)

@@ -1,0 +1,12 @@
+version: '3'
+
+tasks:
+  deploy:server:
+    desc: Deploy server to PRODUCTION (placeholder)
+    cmds:
+      - echo "Not yet configured -- add Kamal config to infra/deploy/prod/"
+
+  deploy:frontend:
+    desc: Deploy frontend to PRODUCTION (placeholder)
+    cmds:
+      - echo "Not yet configured"

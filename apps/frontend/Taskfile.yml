@@ -1,0 +1,29 @@
+version: '3'
+
+dotenv: ['../../.env', '../../application.env']
+
+tasks:
+  install:
+    desc: Install dependencies
+    cmds:
+      - bun install
+
+  dev:
+    desc: Start Vite dev server
+    cmds:
+      - bun run dev
+
+  build:
+    desc: Build for production
+    cmds:
+      - bun run build
+
+  test:
+    desc: Run tests
+    cmds:
+      - bun run vitest --run
+
+  lint:
+    desc: Run ESLint
+    cmds:
+      - bun run lint

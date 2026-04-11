@@ -1,0 +1,15 @@
+version: '3'
+dotenv: ['../../.env', '../../application.env']
+tasks:
+  build:
+    desc: Build CLI
+    cmds: ["./gradlew build"]
+  jlink:
+    desc: Build JLink native image
+    cmds: ["./gradlew jlink"]
+  run:
+    desc: Run CLI
+    cmds: ["./gradlew run --args='{{.CLI_ARGS}}'"]
+  clean:
+    desc: Clean
+    cmds: ["./gradlew clean"]

@@ -1,0 +1,6 @@
+build/
+.gradle/
+data/
+bin/
+*.md
+Taskfile.yml

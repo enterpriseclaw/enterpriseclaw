@@ -1,0 +1,34 @@
+version: '3'
+
+dotenv: ['../../.env', '../../application.env']
+
+tasks:
+  dev:
+    desc: Start Spring Boot with hot-reload
+    cmds:
+      - ./gradlew bootRun
+
+  build:
+    desc: Build production JAR
+    cmds:
+      - ./gradlew build
+
+  test:
+    desc: Run unit tests
+    cmds:
+      - ./gradlew test
+
+  test:integration:
+    desc: Run integration tests (requires Docker)
+    cmds:
+      - ./gradlew integrationTest
+
+  lint:
+    desc: Run checks
+    cmds:
+      - ./gradlew check -x test
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - ./gradlew clean

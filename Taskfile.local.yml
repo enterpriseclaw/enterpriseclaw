@@ -1,0 +1,127 @@
+version: '3'
+
+tasks:
+  # --- PostgreSQL ---
+
+  postgres:start:
+    desc: Start local PostgreSQL using Docker Compose
+    cmds:
+      - docker network create ec-network || echo "Network ec-network already exists"
+      - docker compose -f docker-compose-postgres.yaml up -d
+
+  postgres:stop:
+    desc: Stop local PostgreSQL
+    cmds:
+      - docker compose -f docker-compose-postgres.yaml down
+
+  postgres:reset:
+    desc: Reset PostgreSQL containers and volumes (deletes all data)
+    cmds:
+      - docker compose -f docker-compose-postgres.yaml down -v
+
+  postgres:shell:
+    desc: Open psql shell
+    cmds:
+      - docker compose -f docker-compose-postgres.yaml exec postgres psql -U enterpriseclaw -d enterpriseclaw
+
+  # --- Dev Mode ---
+
+  dev:all:
+    desc: Start all apps in dev mode (server + frontend)
+    deps: [dev:server, dev:frontend]
+
+  dev:server:
+    desc: Start Spring Boot server in dev mode
+    dir: apps/server
+    cmd: task dev
+
+  dev:frontend:
+    desc: Start Vite frontend in dev mode
+    dir: apps/frontend
+    cmd: task dev
+
+  # --- Testing ---
+
+  test:all:
+    desc: Run all tests
+    cmds:
+      - task: test:server
+      - task: test:frontend
+
+  test:server:
+    desc: Run server tests
+    dir: apps/server
+    cmd: task test
+
+  test:frontend:
+    desc: Run frontend tests
+    dir: apps/frontend
+    cmd: task test
+
+  # --- Build ---
+
+  build:all:
+    desc: Full production build
+    cmds:
+      - task: build:frontend
+      - task: build:server
+
+  build:frontend:
+    desc: Build frontend
+    dir: apps/frontend
+    cmd: task build
+
+  build:server:
+    desc: Build server JAR
+    dir: apps/server
+    cmd: task build
+
+  # --- Lint ---
+
+  lint:all:
+    desc: Lint everything
+    cmds:
+      - task: lint:server
+      - task: lint:frontend
+
+  lint:server:
+    desc: Lint server
+    dir: apps/server
+    cmd: task lint
+
+  lint:frontend:
+    desc: Lint frontend
+    dir: apps/frontend
+    cmd: task lint
+
+  # --- Clean ---
+
+  clean:
+    desc: Remove all build artifacts
+    cmds:
+      - cd apps/server && task clean
+      - rm -rf apps/frontend/dist
+
+  # --- Docker ---
+
+  docker:all:
+    desc: Start all apps as Docker containers
+    cmds:
+      - task: docker:server
+      - task: docker:frontend
+
+  docker:server:
+    desc: Start server container
+    dir: apps/server
+    cmd: docker compose up --build -d
+
+  docker:frontend:
+    desc: Start frontend container
+    dir: apps/frontend
+    cmd: docker compose up --build -d
+
+  docker:stop:
+    desc: Stop all containers
+    cmds:
+      - cd apps/server && docker compose down
+      - cd apps/frontend && docker compose down

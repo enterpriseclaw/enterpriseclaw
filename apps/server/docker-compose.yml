@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  enterpriseclaw-server:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file:
+      - ../../.env
+      - ../../application.env
+    networks:
+      - ec-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+networks:
+  ec-network:
+    external: true

@@ -1,100 +1,28 @@
 version: '3'
 
-dotenv: ['.env']
+dotenv: ["./.env", "./application.env"]
+
+includes:
+  local:
+    taskfile: ./Taskfile.local.yml
+    dotenv: ["./.env", "./application.env"]
+  dev:
+    taskfile: ./Taskfile.dev.yml
+    dotenv: ["./.env", "./application.env"]
+  production:
+    taskfile: ./Taskfile.production.yml
+    dotenv: ["./.env", "./application.env"]
 
 tasks:
-
-  install:
-    desc: Install frontend dependencies
-    dir: frontend
+  status:
+    desc: Check installation status of all required tools
     cmds:
-      - bun install
-
-  dev:frontend:
-    desc: Start Vite dev server
-    dir: frontend
-    cmds:
-      - bun run dev
-
-  dev:backend:
-    desc: Start Spring Boot
-    cmds:
-      - ./gradlew bootRun
-
-  dev:
-    desc: Start both frontend and backend
-    deps: [dev:frontend, dev:backend]
-
-  build:frontend:
-    desc: Build React and copy to static/
-    dir: frontend
-    cmds:
-      - bun run build
-      - mkdir -p ../src/main/resources/static
-      - cp -r dist/. ../src/main/resources/static/
-
-  build:
-    desc: Full production build
-    cmds:
-      - task: build:frontend
-      - ./gradlew build
-
-  test:backend:
-    desc: Run backend tests
-    cmds:
-      - ./gradlew test
-
-  test:frontend:
-    desc: Run frontend tests
-    dir: frontend
-    cmds:
-      - bun run vitest --run
-
-  test:
-    desc: Run all tests
-    cmds:
-      - task: test:backend
-      - task: test:frontend
-
-  lint:frontend:
-    desc: Lint frontend
-    dir: frontend
-    cmds:
-      - bun run lint
-
-  lint:backend:
-    desc: Lint backend
-    cmds:
-      - ./gradlew check -x test
-
-  lint:
-    desc: Lint everything
-    cmds:
-      - task: lint:frontend
-      - task: lint:backend
-
-  db:start:
-    desc: Start PostgreSQL with pgvector using docker-compose
-    cmds:
-      - docker compose up -d postgres
-
-  db:stop:
-    desc: Stop PostgreSQL
-    cmds:
-      - docker compose down
-
-  db:logs:
-    desc: Show PostgreSQL logs
-    cmds:
-      - docker compose logs -f postgres
-
-  db:shell:
-    desc: Open psql shell
-    cmds:
-      - docker compose exec postgres psql -U enterpriseclaw -d enterpriseclaw
-
-  clean:
-    desc: Remove all build artefacts
-    cmds:
-      - rm -rf frontend/dist src/main/resources/static build
-      - ./gradlew clean
+      - |
+        echo "Checking required tools..."
+        for tool in java git task bun docker; do
+          if command -v $tool &> /dev/null; then
+            echo "OK $tool: $($tool --version 2>&1 | head -1)"
+          else
+            echo "MISSING $tool: Not installed"
+          fi
+        done

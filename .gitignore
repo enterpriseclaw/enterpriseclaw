@@ -80,9 +80,18 @@ build/
 data/
 
 # Frontend
-frontend/node_modules/
-frontend/dist/
-src/main/resources/static/
+apps/frontend/node_modules/
+apps/frontend/dist/
+
+# Server
+apps/server/build/
+apps/server/.gradle/
+apps/server/data/
+apps/server/src/main/resources/static/
+
+# CLI
+apps/cli/build/
+apps/cli/.gradle/
 
 # .NET
 bin/

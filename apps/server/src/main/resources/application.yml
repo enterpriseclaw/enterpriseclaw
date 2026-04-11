@@ -1,0 +1,55 @@
+spring:
+  profiles:
+    active: solo
+  ai:
+    chat:
+      client:
+        enabled: true
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:}
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        enabled: false
+    mcp:
+      server:
+        enabled: false
+      client:
+        enabled: true
+  datasource:
+    url: jdbc:h2:file:./data/enterpriseclaw
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ''
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+  threads:
+    virtual:
+      enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+
+enterpriseclaw:
+  skills:
+    directory: ../../skills
+  chat:
+    default-provider: auto
+    default-model: gpt-4.1
+    copilot:
+      enabled: true
+      model: gpt-4.1
+      tool-permission-mode: approve_all
+
+server:
+  address: 127.0.0.1
+  port: 8080
