@@ -6,10 +6,12 @@ import { CronJobsPage }  from '@/domain/cronjobs/CronJobsPage'
 import { DashboardPage } from '@/domain/dashboard/DashboardPage'
 import { AuditLogPage }  from '@/domain/audit/AuditLogPage'
 import { SettingsPage }  from '@/domain/settings/SettingsPage'
+import { OnboardPage }   from '@/domain/onboard/OnboardPage'
 
 export function AppRoutes() {
   return (
     <Routes>
+      <Route path="/onboard" element={<OnboardPage />} />
       <Route element={<AppShell />}>
         <Route index element={<Navigate to="/chat" replace />} />
         <Route path="/chat"        element={<ChatPage />} />

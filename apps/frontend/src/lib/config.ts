@@ -20,6 +20,7 @@ export const config = {
       modelsAll:     '/api/v1/settings/models/all',
       providers:     '/api/v1/settings/providers',
       modelsRefresh: '/api/v1/settings/models/refresh',
+      doctor:        '/api/v1/settings/doctor',
     },
   },
   routes: {
@@ -33,6 +34,7 @@ export const config = {
     auditLog:    '/audit-log',
     settings:    '/settings',
     login:       '/login',
+    onboard:     '/onboard',
   },
   session: {
     tokenKey: 'ec_auth_token',

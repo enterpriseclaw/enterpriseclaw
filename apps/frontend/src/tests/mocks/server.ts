@@ -40,6 +40,16 @@ const defaultHandlers = [
       { id: 'claude-sonnet-4-5-20250929', displayName: 'Claude Sonnet 4.5', provider: 'anthropic', available: true },
     ])
   ),
+  http.get('/api/v1/settings/doctor', () =>
+    HttpResponse.json({
+      overallStatus: 'OK',
+      checks: [
+        { name: 'Database', status: 'OK', message: 'H2 in-memory database active' },
+        { name: 'Skills Directory', status: 'OK', message: '3 skills loaded' },
+        { name: 'Ollama', status: 'WARN', message: 'Ollama not running on localhost:11434' },
+      ],
+    })
+  ),
 ]
 
 export const server = setupServer(...defaultHandlers)
