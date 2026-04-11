@@ -6,6 +6,9 @@ import com.enterpriseclaw.model.ChannelType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
+
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -13,6 +16,7 @@ import org.springframework.stereotype.Component;
 public class TelegramChannelConnector implements ChannelConnector {
 
     private final TelegramApiClient telegramApiClient;
+    private final ObjectMapper objectMapper;
     private volatile boolean connected = false;
     private String botToken;
 
@@ -22,9 +26,11 @@ public class TelegramChannelConnector implements ChannelConnector {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void start(ChannelConfig config) {
-        this.botToken = config.configJson().get("botToken");
-        String webhookUrl = config.configJson().get("webhookUrl");
+        Map<String, String> json = parseConfigJson(config.getConfigJson());
+        this.botToken = json.get("botToken");
+        String webhookUrl = json.get("webhookUrl");
         telegramApiClient.setWebhook(botToken, webhookUrl);
         connected = true;
         log.info("Telegram connector started");
@@ -56,5 +62,14 @@ public class TelegramChannelConnector implements ChannelConnector {
 
     public String getBotToken() {
         return botToken;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, String> parseConfigJson(String configJson) {
+        try {
+            return objectMapper.readValue(configJson, Map.class);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid channel config JSON", e);
+        }
     }
 }
